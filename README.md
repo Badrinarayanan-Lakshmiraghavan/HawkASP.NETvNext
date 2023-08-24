@@ -1,4 +1,5 @@
 Hawk ASP.NET vNext Middleware
+Badrinarayanan Lakshmiraghavan
 =========
 This is an initial attempt to redesign the Hawk OWIN middleware that is part of the [Thinktecture IdentityModel](https://github.com/thinktecture/Thinktecture.IdentityModel/tree/master/source/Hawk) into an ASP.NET vNext middleware. This middleware is based on ASP.NET vNext nightly bits and hence do not expect a stable codebase at this point. Things will change, as ASP.NET vNext is being actively developed.
 
