@@ -1,0 +1,179 @@
+
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>HawkASP.NETvNext</title>
+<meta name="google-site-verification" content="2-dzW0-n4n5CQ3vmheNGIuJaNF7QWV8De7dULbbbhR4" />
+<meta name="description" content="Author: Badrinarayanan Lakshmiraghavan">
+<meta name="generator" content="Jekyll v3.9.3" />
+<meta property="og:title" content="HawkASP.NETvNext" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="http://badrinarayanan-lakshmiraghavan.github.io/HawkASP.NETvNext/" />
+<meta property="og:url" content="http://badrinarayanan-lakshmiraghavan.github.io/HawkASP.NETvNext/" />
+<meta property="og:site_name" content="HawkASP.NETvNext" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="HawkASP.NETvNext" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","headline":"HawkASP.NETvNext","name":"HawkASP.NETvNext","url":"http://badrinarayanan-lakshmiraghavan.github.io/HawkASP.NETvNext/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/HawkASP.NETvNext/assets/css/style.css?v=60aa30b622556f57c7d3efc1e053bc2edf8c500c">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/HawkASP.NETvNext/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="http://badrinarayanan-lakshmiraghavan.github.io/HawkASP.NETvNext/">HawkASP.NETvNext</a></h1>
+      
+
+      <p>Hawk ASP.NET vNext Middleware by Badrinarayanan Lakshmiraghavan
+=========
+This is an initial attempt to redesign the Hawk OWIN middleware that is part of the <a href="https://github.com/thinktecture/Thinktecture.IdentityModel/tree/master/source/Hawk">Thinktecture IdentityModel</a> into an ASP.NET vNext middleware. This middleware is based on ASP.NET vNext nightly bits and hence do not expect a stable codebase at this point. Things will change, as ASP.NET vNext is being actively developed.</p>
+
+<p>The current design is based on two pipelines respectively for handling the request <code class="language-plaintext highlighter-rouge">Receive</code> and producing the response <code class="language-plaintext highlighter-rouge">Send</code>. Hawk authentication pipeline is composed of the following stages.</p>
+
+<ol>
+<li>Header Stage</li>
+<li>Bewit Stage</li>
+<li>User Stage</li>
+<li>Mac Stage</li>
+<li>Freshness Stage</li>
+<li>Body Hash Stage</li>
+<li>Ext Stage</li>
+<li>Identity Stage</li>
+</ol>
+
+<p>A stage is defined by an abstract class <code class="language-plaintext highlighter-rouge">PipelineStage</code>.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">using</span> <span class="nn">System.Threading.Tasks</span><span class="p">;</span>
+
+<span class="k">namespace</span> <span class="nn">HawkvNext.Stages</span>
+<span class="p">{</span>
+    <span class="k">internal</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">PipelineStage</span>
+    <span class="p">{</span>
+        <span class="k">internal</span> <span class="n">PipelineStage</span> <span class="n">Next</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+
+        <span class="k">internal</span> <span class="k">virtual</span> <span class="k">async</span> <span class="n">Task</span> <span class="nf">Receive</span><span class="p">(</span><span class="n">HawkPipelineContext</span> <span class="n">context</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">await</span> <span class="k">this</span><span class="p">.</span><span class="n">Next</span><span class="p">.</span><span class="nf">Receive</span><span class="p">(</span><span class="n">context</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">internal</span> <span class="k">virtual</span> <span class="k">async</span> <span class="n">Task</span> <span class="nf">Send</span><span class="p">(</span><span class="n">HawkPipelineContext</span> <span class="n">context</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">await</span> <span class="k">this</span><span class="p">.</span><span class="n">Next</span><span class="p">.</span><span class="nf">Send</span><span class="p">(</span><span class="n">context</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The concrete classes corresponding to each stage is assembled into a pipeline by the sub-classed authentication handler class and request is run through the pipeline by calling the <code class="language-plaintext highlighter-rouge">Receive</code> method. Then, the pipeline is reversed and the response flows through the pipeline through the calling of the <code class="language-plaintext highlighter-rouge">Send</code> method.</p>
+
+<h2>Receive Pipeline</h2>
+
+<p><img src="https://lbadri.files.wordpress.com/2014/10/receive.jpg" /></p>
+
+<h2>Send Pipeline</h2>
+
+<p><img src="https://lbadri.files.wordpress.com/2014/10/send.jpg" /></p>
+
+<h2>Client Application</h2>
+<p>You need to send the authorization header/bewit with correct crypto stuff like MAC, payload hash, etc. To make that task easier, you can use the existing NuGet package <a href="https://www.nuget.org/packages/Thinktecture.IdentityModel.Hawk/">Thinktecture.IdentityModel.Hawk</a>.</p>
+
+<p>Create a console app and add two NuGet packages - Microsoft.AspNet.WebApi.Client and Thinktecture.IdentityModel.Hawk. Then, copy paste the code below and you are all set to talk to the Hawk authentication middleware.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">using</span> <span class="nn">System</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">System.Linq</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">System.Net</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">System.Net.Http</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">Thinktecture.IdentityModel.Hawk.Client</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">Thinktecture.IdentityModel.Hawk.Core</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">Thinktecture.IdentityModel.Hawk.Core.Helpers</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">Thinktecture.IdentityModel.Hawk.WebApi</span><span class="p">;</span>
+
+<span class="k">namespace</span> <span class="nn">ClientApp</span>
+<span class="p">{</span>
+    <span class="k">class</span> <span class="nc">Program</span>
+    <span class="p">{</span>
+        <span class="k">static</span> <span class="k">void</span> <span class="nf">Main</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span> <span class="n">args</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="kt">string</span> <span class="n">uri</span> <span class="p">=</span> <span class="s">"http://localhost:5000"</span><span class="p">;</span>
+
+            <span class="kt">var</span> <span class="n">credential</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Credential</span><span class="p">()</span>
+            <span class="p">{</span>
+                <span class="n">Id</span> <span class="p">=</span> <span class="s">"dh37fgj492je"</span><span class="p">,</span>
+                <span class="n">Algorithm</span> <span class="p">=</span> <span class="n">SupportedAlgorithms</span><span class="p">.</span><span class="n">SHA256</span><span class="p">,</span>
+                <span class="n">User</span> <span class="p">=</span> <span class="s">"Steve"</span><span class="p">,</span>
+                <span class="n">Key</span> <span class="p">=</span> <span class="n">Convert</span><span class="p">.</span><span class="nf">FromBase64String</span><span class="p">(</span><span class="s">"wBgvhp1lZTr4Tb6K6+5OQa1bL9fxK7j8wBsepjqVNiQ="</span><span class="p">)</span>
+            <span class="p">};</span>
+
+            <span class="c1">// GET and POST using the Authorization header</span>
+            <span class="kt">var</span> <span class="n">options</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">ClientOptions</span><span class="p">()</span>
+            <span class="p">{</span>
+                <span class="n">CredentialsCallback</span> <span class="p">=</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="n">credential</span><span class="p">,</span>
+                <span class="n">RequestPayloadHashabilityCallback</span> <span class="p">=</span> <span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="k">true</span><span class="p">,</span>
+                <span class="n">NormalizationCallback</span> <span class="p">=</span> <span class="p">(</span><span class="n">req</span><span class="p">)</span> <span class="p">=&gt;</span>
+                <span class="p">{</span>
+                    <span class="kt">string</span> <span class="n">name</span> <span class="p">=</span> <span class="s">"X-Request-Header-To-Protect"</span><span class="p">;</span>
+                    <span class="k">return</span> <span class="n">req</span><span class="p">.</span><span class="n">Headers</span><span class="p">.</span><span class="nf">ContainsKey</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="p">?</span>
+                                <span class="n">name</span> <span class="p">+</span> <span class="s">":"</span> <span class="p">+</span> <span class="n">req</span><span class="p">.</span><span class="n">Headers</span><span class="p">[</span><span class="n">name</span><span class="p">].</span><span class="nf">First</span><span class="p">()</span> <span class="p">:</span> <span class="k">null</span><span class="p">;</span>
+                <span class="p">},</span>
+                <span class="n">EnableResponseValidation</span> <span class="p">=</span> <span class="k">true</span><span class="p">,</span>
+                <span class="n">VerificationCallback</span> <span class="p">=</span> <span class="p">(</span><span class="n">resp</span><span class="p">,</span> <span class="n">ext</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="s">"hello"</span><span class="p">.</span><span class="nf">Equals</span><span class="p">(</span><span class="n">ext</span><span class="p">)</span>
+            <span class="p">};</span>
+
+            <span class="kt">var</span> <span class="n">handler</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">HawkValidationHandler</span><span class="p">(</span><span class="n">options</span><span class="p">);</span>
+
+            <span class="n">HttpClient</span> <span class="n">client</span> <span class="p">=</span> <span class="n">HttpClientFactory</span><span class="p">.</span><span class="nf">Create</span><span class="p">(</span><span class="n">handler</span><span class="p">);</span>
+            <span class="n">client</span><span class="p">.</span><span class="n">DefaultRequestHeaders</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="s">"X-Request-Header-To-Protect"</span><span class="p">,</span> <span class="s">"secret"</span><span class="p">);</span>
+
+            <span class="kt">var</span> <span class="n">response</span> <span class="p">=</span> <span class="n">client</span><span class="p">.</span><span class="nf">GetAsync</span><span class="p">(</span><span class="n">uri</span><span class="p">).</span><span class="n">Result</span><span class="p">;</span>
+            <span class="n">Console</span><span class="p">.</span><span class="nf">WriteLine</span><span class="p">(</span><span class="n">response</span><span class="p">.</span><span class="n">Content</span><span class="p">.</span><span class="nf">ReadAsStringAsync</span><span class="p">().</span><span class="n">Result</span><span class="p">);</span>
+
+            <span class="n">response</span> <span class="p">=</span> <span class="n">client</span><span class="p">.</span><span class="nf">PostAsJsonAsync</span><span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="n">credential</span><span class="p">.</span><span class="n">User</span><span class="p">).</span><span class="n">Result</span><span class="p">;</span>
+            <span class="n">Console</span><span class="p">.</span><span class="nf">WriteLine</span><span class="p">(</span><span class="n">response</span><span class="p">.</span><span class="n">Content</span><span class="p">.</span><span class="nf">ReadAsStringAsync</span><span class="p">().</span><span class="n">Result</span><span class="p">);</span>
+
+            <span class="c1">// GET using Bewit</span>
+            <span class="kt">var</span> <span class="n">hawkClient</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">HawkClient</span><span class="p">(</span><span class="n">options</span><span class="p">);</span>
+            <span class="kt">var</span> <span class="n">request</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">HttpRequestMessage</span><span class="p">()</span> <span class="p">{</span> <span class="n">RequestUri</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Uri</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span> <span class="p">};</span>
+
+            <span class="kt">string</span> <span class="n">bewit</span> <span class="p">=</span> <span class="n">hawkClient</span><span class="p">.</span><span class="nf">CreateBewit</span><span class="p">(</span><span class="k">new</span> <span class="nf">WebApiRequestMessage</span><span class="p">(</span><span class="n">request</span><span class="p">),</span>
+                                                        <span class="n">lifeSeconds</span><span class="p">:</span> <span class="m">60</span><span class="p">);</span>
+
+            <span class="c1">// Bewit is handed off to a client needing temporary access to the resource.</span>
+            <span class="kt">var</span> <span class="n">clientNeedingTempAccess</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">WebClient</span><span class="p">();</span>
+            <span class="kt">var</span> <span class="n">resource</span> <span class="p">=</span> <span class="n">clientNeedingTempAccess</span><span class="p">.</span><span class="nf">DownloadString</span><span class="p">(</span><span class="n">uri</span> <span class="p">+</span> <span class="s">"?bewit="</span> <span class="p">+</span> <span class="n">bewit</span><span class="p">);</span>
+            <span class="n">Console</span><span class="p">.</span><span class="nf">WriteLine</span><span class="p">(</span><span class="n">resource</span><span class="p">);</span>
+
+            <span class="n">Console</span><span class="p">.</span><span class="nf">Read</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/Badrinarayanan-Lakshmiraghavan/HawkASP.NETvNext/edit/master/README.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>
